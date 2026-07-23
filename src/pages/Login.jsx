@@ -9,6 +9,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { user, loading, login } = useAuth();
   const navigate = useNavigate();
 
@@ -26,7 +27,7 @@ export default function Login() {
     );
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
     const validationErrors = validateLogin({ email, password });
@@ -35,7 +36,9 @@ export default function Login() {
       return;
     }
     setErrors({});
-    const result = login(email, password, role);
+    setSubmitting(true);
+    const result = await login(email, password, role);
+    setSubmitting(false);
     if (!result.success) {
       setSubmitError(result.error);
       return;
@@ -102,8 +105,8 @@ export default function Login() {
 
           {submitError && <div className="alert alert-error">{submitError}</div>}
 
-          <button type="submit" className="btn btn-primary btn-block">
-            Sign In as {role === 'admin' ? 'Admin' : 'Student'}
+          <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+            {submitting ? 'Signing in...' : `Sign In as ${role === 'admin' ? 'Admin' : 'Student'}`}
           </button>
         </form>
 

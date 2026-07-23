@@ -24,6 +24,9 @@ export default function AdminLayout({ children }) {
           <NavLink to="/admin/courses" className={({ isActive }) => (isActive ? 'active' : '')}>
             <span className="nav-icon">📚</span> Manage Courses
           </NavLink>
+          <NavLink to="/admin/students" className={({ isActive }) => (isActive ? 'active' : '')}>
+            <span className="nav-icon">👥</span> Manage Students
+          </NavLink>
           <NavLink to="/admin/feedback" className={({ isActive }) => (isActive ? 'active' : '')}>
             <span className="nav-icon">💬</span> View Feedback
           </NavLink>
@@ -58,6 +61,9 @@ export default function AdminLayout({ children }) {
           </NavLink>
           <NavLink to="/admin/courses" className={({ isActive }) => (isActive ? 'active' : '')}>
             Courses
+          </NavLink>
+          <NavLink to="/admin/students" className={({ isActive }) => (isActive ? 'active' : '')}>
+            Students
           </NavLink>
           <NavLink to="/admin/feedback" className={({ isActive }) => (isActive ? 'active' : '')}>
             Feedback

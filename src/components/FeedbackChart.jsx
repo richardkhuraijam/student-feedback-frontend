@@ -1,23 +1,8 @@
-import { getCourses, getFeedback } from '../utils/storage';
-import { getAverageRating } from '../utils/mockData';
-
-export default function FeedbackChart() {
-  const courses = getCourses();
-  const feedback = getFeedback();
-
-  const chartData = courses.map((course) => {
-    const courseFeedback = feedback.filter((f) => f.courseId === course.id);
-    return {
-      name: course.code,
-      fullName: course.name,
-      count: courseFeedback.length,
-      avgRating: parseFloat(getAverageRating(courseFeedback)) || 0,
-    };
-  });
-
+export default function FeedbackChart({ chartData = [] }) {
   const maxCount = Math.max(...chartData.map((d) => d.count), 1);
+  const hasFeedback = chartData.some((d) => d.count > 0);
 
-  if (!feedback.length) {
+  if (!hasFeedback) {
     return (
       <div className="chart-empty">
         <p>No feedback data to display yet.</p>

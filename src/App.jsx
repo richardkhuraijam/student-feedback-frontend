@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -9,17 +8,14 @@ import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageCourses from './pages/admin/ManageCourses';
+import ManageStudents from './pages/admin/ManageStudents';
 import ViewFeedback from './pages/admin/ViewFeedback';
 import StudentDashboard from './pages/student/StudentDashboard';
 import MyFeedback from './pages/student/MyFeedback';
 import FeedbackForm from './pages/student/FeedbackForm';
-import { initializeMockData } from './utils/mockData';
 import './styles/global.css';
 
 function App() {
-  useEffect(() => {
-    initializeMockData();
-  }, []);
   return (
     <AuthProvider>
       <ToastProvider>
@@ -44,6 +40,16 @@ function App() {
                 <ProtectedRoute requiredRole="admin">
                   <AdminLayout>
                     <ManageCourses />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/students"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminLayout>
+                    <ManageStudents />
                   </AdminLayout>
                 </ProtectedRoute>
               }

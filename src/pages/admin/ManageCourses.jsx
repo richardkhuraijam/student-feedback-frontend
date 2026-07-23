@@ -1,32 +1,42 @@
-import { useState } from 'react';
-import { getCourses, setCourses, getEnrollments, setEnrollments, getFeedback, setFeedback, generateId } from '../../utils/storage';
+import { useEffect, useState } from 'react';
+import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import CourseForm from '../../components/CourseForm';
 import EmptyState from '../../components/EmptyState';
 
 export default function ManageCourses() {
-  const [courses, setCoursesState] = useState(getCourses());
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const { showToast } = useToast();
 
-  const refresh = () => setCoursesState(getCourses());
+  const loadCourses = async () => {
+    const data = await api.getCourses();
+    setCourses(data.courses || []);
+  };
 
-  const handleSave = (formData) => {
-    if (editingCourse) {
-      const updated = courses.map((c) =>
-        c.id === editingCourse.id ? { ...c, ...formData } : c
-      );
-      setCourses(updated);
-      showToast('Course updated successfully');
-    } else {
-      const newCourse = { id: generateId(), ...formData };
-      setCourses([...courses, newCourse]);
-      showToast('Course added successfully');
+  useEffect(() => {
+    loadCourses()
+      .catch((err) => showToast(err.message || 'Failed to load courses', 'error'))
+      .finally(() => setLoading(false));
+  }, [showToast]);
+
+  const handleSave = async (formData) => {
+    try {
+      if (editingCourse) {
+        await api.updateCourse(editingCourse.id, formData);
+        showToast('Course updated successfully');
+      } else {
+        await api.createCourse(formData);
+        showToast('Course added successfully');
+      }
+      await loadCourses();
+      setShowForm(false);
+      setEditingCourse(null);
+    } catch (err) {
+      showToast(err.message || 'Failed to save course', 'error');
     }
-    refresh();
-    setShowForm(false);
-    setEditingCourse(null);
   };
 
   const handleEdit = (course) => {
@@ -34,19 +44,31 @@ export default function ManageCourses() {
     setShowForm(true);
   };
 
-  const handleDelete = (courseId) => {
+  const handleDelete = async (courseId) => {
     if (!window.confirm('Are you sure you want to delete this course?')) return;
-    setCourses(courses.filter((c) => c.id !== courseId));
-    setEnrollments(getEnrollments().filter((e) => e.courseId !== courseId));
-    setFeedback(getFeedback().filter((f) => f.courseId !== courseId));
-    refresh();
-    showToast('Course deleted', 'info');
+    try {
+      await api.deleteCourse(courseId);
+      await loadCourses();
+      showToast('Course deleted', 'info');
+    } catch (err) {
+      showToast(err.message || 'Failed to delete course', 'error');
+    }
   };
 
   const handleCancel = () => {
     setShowForm(false);
     setEditingCourse(null);
   };
+
+  if (loading) {
+    return (
+      <div className="page manage-courses">
+        <div className="loading-screen">
+          <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page manage-courses">

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { getCurrentUser, setCurrentUser, getUsers } from '../utils/storage';
+import { api, setToken } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -8,29 +8,36 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = getCurrentUser();
-    if (stored) setUser(stored);
-    setLoading(false);
+    const token = localStorage.getItem('feedback_token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    api
+      .me()
+      .then((data) => setUser(data.user))
+      .catch(() => {
+        setToken(null);
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback((email, password, role) => {
-    const users = getUsers();
-    const found = users.find(
-      (u) =>
-        u.email.toLowerCase() === email.toLowerCase() &&
-        u.password === password &&
-        u.role === role
-    );
-    if (!found) return { success: false, error: 'Invalid credentials or role mismatch' };
-    const { password: _, ...safeUser } = found;
-    setUser(safeUser);
-    setCurrentUser(safeUser);
-    return { success: true, user: safeUser };
+  const login = useCallback(async (email, password, role) => {
+    try {
+      const data = await api.login({ email, password, role });
+      setToken(data.access_token);
+      setUser(data.user);
+      return { success: true, user: data.user };
+    } catch (err) {
+      return { success: false, error: err.message || 'Login failed' };
+    }
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    setCurrentUser(null);
+    setToken(null);
   }, []);
 
   return (

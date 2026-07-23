@@ -1,25 +1,55 @@
-import { useState } from 'react';
-import { getCourses, getFeedback } from '../../utils/storage';
-import { getFeedbackByCourse, getAverageRating, RATING_QUESTIONS } from '../../utils/mockData';
+import { useEffect, useState } from 'react';
+import { api } from '../../utils/api';
+import { RATING_QUESTIONS } from '../../utils/mockData';
 import EmptyState from '../../components/EmptyState';
 import { RatingDisplay } from '../../components/StarRating';
 
 export default function ViewFeedback() {
-  const courses = getCourses();
-  const allFeedback = getFeedback();
+  const [grouped, setGrouped] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [filterCourse, setFilterCourse] = useState('all');
   const [expandedId, setExpandedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const filteredCourses =
+  useEffect(() => {
+    Promise.all([api.getFeedbackByCourse(), api.getCourses()])
+      .then(([feedbackData, coursesData]) => {
+        setGrouped(feedbackData.courses || []);
+        setCourses(coursesData.courses || []);
+      })
+      .catch((err) => setError(err.message || 'Failed to load feedback'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="page view-feedback">
+        <div className="loading-screen">
+          <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page view-feedback">
+        <div className="alert alert-error">{error}</div>
+      </div>
+    );
+  }
+
+  const filtered =
     filterCourse === 'all'
-      ? courses.filter((c) => allFeedback.some((f) => f.courseId === c.id))
-      : courses.filter((c) => c.id === filterCourse);
+      ? grouped
+      : grouped.filter((g) => g.course.id === filterCourse);
 
   const toggleExpand = (courseId) => {
     setExpandedId(expandedId === courseId ? null : courseId);
   };
 
-  if (!allFeedback.length) {
+  if (!grouped.length) {
     return (
       <div className="page view-feedback">
         <div className="page-header">
@@ -57,10 +87,7 @@ export default function ViewFeedback() {
       </div>
 
       <div className="feedback-list">
-        {filteredCourses.map((course) => {
-          const courseFeedback = getFeedbackByCourse(course.id);
-          if (!courseFeedback.length) return null;
-          const avgRating = getAverageRating(courseFeedback);
+        {filtered.map(({ course, count, averageRating, feedback }) => {
           const isExpanded = expandedId === course.id;
 
           return (
@@ -78,16 +105,16 @@ export default function ViewFeedback() {
                 </div>
                 <div className="feedback-course-stats">
                   <span className="feedback-count">
-                    {courseFeedback.length} response{courseFeedback.length !== 1 ? 's' : ''}
+                    {count} response{count !== 1 ? 's' : ''}
                   </span>
-                  <RatingDisplay value={parseFloat(avgRating)} />
+                  <RatingDisplay value={parseFloat(averageRating)} />
                   <span className="expand-icon">{isExpanded ? '▲' : '▼'}</span>
                 </div>
               </button>
 
               {isExpanded && (
                 <div className="feedback-responses">
-                  {courseFeedback.map((fb) => (
+                  {feedback.map((fb) => (
                     <div key={fb.id} className="feedback-response">
                       <div className="response-header">
                         <span className="response-student">{fb.student?.name ?? 'Unknown'}</span>
