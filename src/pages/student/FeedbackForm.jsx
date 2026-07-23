@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { getCourses, getFeedback, setFeedback, generateId } from '../../utils/storage';
-import { hasSubmittedFeedback, RATING_QUESTIONS } from '../../utils/mockData';
+import { api } from '../../utils/api';
+import { RATING_QUESTIONS } from '../../utils/mockData';
 import { validateFeedback } from '../../utils/validation';
 import StarRating, { RatingDisplay } from '../../components/StarRating';
 
@@ -17,21 +16,43 @@ const EMPTY_RATINGS = {
 
 export default function FeedbackForm() {
   const { courseId } = useParams();
-  const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  const course = getCourses().find((c) => c.id === courseId);
-  const existingFeedback = getFeedback().find(
-    (f) => f.studentId === user.id && f.courseId === courseId
-  );
-  const alreadySubmitted = hasSubmittedFeedback(user.id, courseId);
-
-  const [ratings, setRatings] = useState(
-    existingFeedback?.ratings ?? { ...EMPTY_RATINGS }
-  );
-  const [comments, setComments] = useState(existingFeedback?.comments ?? '');
+  const [course, setCourse] = useState(null);
+  const [existingFeedback, setExistingFeedback] = useState(null);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [ratings, setRatings] = useState({ ...EMPTY_RATINGS });
+  const [comments, setComments] = useState('');
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    api
+      .getMyFeedbackForCourse(courseId)
+      .then((data) => {
+        setCourse(data.course);
+        setExistingFeedback(data.feedback);
+        setAlreadySubmitted(Boolean(data.submitted));
+        if (data.feedback) {
+          setRatings(data.feedback.ratings);
+          setComments(data.feedback.comments || '');
+        }
+      })
+      .catch(() => setCourse(null))
+      .finally(() => setLoading(false));
+  }, [courseId]);
+
+  if (loading) {
+    return (
+      <div className="page feedback-form-page">
+        <div className="loading-screen">
+          <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -51,7 +72,7 @@ export default function FeedbackForm() {
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: '' }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (alreadySubmitted) return;
 
@@ -62,18 +83,20 @@ export default function FeedbackForm() {
       return;
     }
 
-    const newFeedback = {
-      id: generateId(),
-      studentId: user.id,
-      courseId: course.id,
-      ratings,
-      comments: comments.trim(),
-      submittedAt: new Date().toISOString(),
-    };
-
-    setFeedback([...getFeedback(), newFeedback]);
-    showToast('Feedback submitted successfully!');
-    navigate('/student');
+    setSubmitting(true);
+    try {
+      await api.submitFeedback({
+        courseId: course.id,
+        ratings,
+        comments: comments.trim(),
+      });
+      showToast('Feedback submitted successfully!');
+      navigate('/student');
+    } catch (err) {
+      showToast(err.message || 'Failed to submit feedback', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (alreadySubmitted) {
@@ -181,8 +204,8 @@ export default function FeedbackForm() {
           <Link to="/student" className="btn btn-secondary">
             Cancel
           </Link>
-          <button type="submit" className="btn btn-primary">
-            Submit Feedback
+          <button type="submit" className="btn btn-primary" disabled={submitting}>
+            {submitting ? 'Submitting...' : 'Submit Feedback'}
           </button>
         </div>
       </form>

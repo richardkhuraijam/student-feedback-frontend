@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getUsers, setUsers, generateId } from '../utils/storage';
 import { validateSignUp } from '../utils/validation';
 import { useToast } from '../context/ToastContext';
+import { api } from '../utils/api';
 
 export default function SignUp() {
   const [form, setForm] = useState({
@@ -12,6 +12,7 @@ export default function SignUp() {
     role: 'student',
   });
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -21,7 +22,7 @@ export default function SignUp() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validateSignUp(form);
     if (Object.keys(validationErrors).length) {
@@ -29,23 +30,27 @@ export default function SignUp() {
       return;
     }
 
-    const users = getUsers();
-    if (users.some((u) => u.email.toLowerCase() === form.email.toLowerCase())) {
-      setErrors({ email: 'An account with this email already exists' });
-      return;
+    setSubmitting(true);
+    try {
+      await api.signup({
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        role: form.role,
+      });
+      showToast('Account created successfully! Please sign in.');
+      navigate('/login');
+    } catch (err) {
+      if (err.status === 409) {
+        setErrors({ email: err.message });
+      } else if (err.details) {
+        setErrors(err.details);
+      } else {
+        showToast(err.message || 'Sign up failed', 'error');
+      }
+    } finally {
+      setSubmitting(false);
     }
-
-    const newUser = {
-      id: generateId(),
-      name: form.name.trim(),
-      email: form.email.trim().toLowerCase(),
-      password: form.password,
-      role: form.role,
-    };
-
-    setUsers([...users, newUser]);
-    showToast('Account created successfully! Please sign in.');
-    navigate('/login');
   };
 
   return (
@@ -106,8 +111,8 @@ export default function SignUp() {
             {errors.role && <span className="error-text">{errors.role}</span>}
           </div>
 
-          <button type="submit" className="btn btn-primary btn-block">
-            Create Account
+          <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+            {submitting ? 'Creating...' : 'Create Account'}
           </button>
         </form>
 

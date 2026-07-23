@@ -1,12 +1,39 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { getStudentFeedback } from '../../utils/mockData';
+import { api } from '../../utils/api';
 import EmptyState from '../../components/EmptyState';
 import { RatingDisplay } from '../../components/StarRating';
 
 export default function MyFeedback() {
-  const { user } = useAuth();
-  const feedbackList = getStudentFeedback(user.id);
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api
+      .getMyFeedback()
+      .then((data) => setFeedbackList(data.feedback || []))
+      .catch((err) => setError(err.message || 'Failed to load feedback'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="page my-feedback">
+        <div className="loading-screen">
+          <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page my-feedback">
+        <div className="alert alert-error">{error}</div>
+      </div>
+    );
+  }
 
   if (!feedbackList.length) {
     return (

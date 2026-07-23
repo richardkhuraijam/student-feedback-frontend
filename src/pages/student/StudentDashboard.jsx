@@ -1,11 +1,38 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { getEnrolledCourses, hasSubmittedFeedback } from '../../utils/mockData';
+import { api } from '../../utils/api';
 import EmptyState from '../../components/EmptyState';
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
-  const courses = getEnrolledCourses(user.id);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api
+      .getEnrolledCourses()
+      .then((data) => setCourses(data.courses || []))
+      .catch((err) => setError(err.message || 'Failed to load courses'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="page student-dashboard">
+        <div className="loading-screen">
+          <div className="spinner" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page student-dashboard">
+        <div className="alert alert-error">{error}</div>
+      </div>
+    );
+  }
 
   if (!courses.length) {
     return (
@@ -17,7 +44,7 @@ export default function StudentDashboard() {
         <EmptyState
           icon="📚"
           title="No courses enrolled yet"
-          description="You are not enrolled in any courses. Contact your administrator."
+          description="You are not enrolled in any courses yet. Ask an admin to assign courses to your account."
         />
       </div>
     );
@@ -32,7 +59,7 @@ export default function StudentDashboard() {
 
       <div className="course-cards-grid">
         {courses.map((course) => {
-          const submitted = hasSubmittedFeedback(user.id, course.id);
+          const submitted = course.submitted;
           return (
             <div key={course.id} className="card course-card">
               <div className="course-card-header">
